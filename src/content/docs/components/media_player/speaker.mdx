@@ -231,8 +231,10 @@ have not been tested. Only mono and stereo are supported, so set `num_channels` 
 
 Adding AAC to a firmware that already has FLAC increases its size by about 75 KB and uses about 55 KB of internal RAM
 for decoder tables, in addition to a larger decoder task stack (12 KiB instead of 3 KiB for each pipeline). Playing AAC
-then uses PSRAM for its working memory, about 20 KB for AAC-LC and about 70 KB for HE-AAC. If internal RAM is tight,
-prefer `FLAC` or `MP3`.
+then uses PSRAM for its working memory, about 20 KB for AAC-LC and about 70 KB for HE-AAC. Without PSRAM, that working
+memory would come from internal RAM instead: roughly 20 KB for AAC-LC and 70 to 90 KB for HE-AAC. This is estimated from
+the PSRAM measurements and has not been tested on a board without PSRAM, so AAC is not recommended there. If internal
+RAM is tight, prefer `FLAC` or `MP3`.
 
 Decoding OPUS is extremely CPU and memory intensive and may not even decode in real-time on an ESP32. It is only suitable for ESP32-S3 devices with PSRAM.
 
