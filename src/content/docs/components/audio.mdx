@@ -27,6 +27,7 @@ Enabling codecs through this component is **additive**: it cannot disable a code
 # Example configuration entry
 audio:
   codecs:
+    aac:
     flac:
     mp3:
     opus:
@@ -37,6 +38,21 @@ audio:
 
 - **codecs** (*Optional*, mapping): A mapping that enables and configures individual audio codecs. Each codec key may
   be left empty to enable the codec with default settings, or populated with the per-codec options described below.
+
+  - **aac** (*Optional*, mapping): Enable decoding of AAC audio in ADTS streams (AAC-LC, HE-AAC and HE-AAC v2, up to
+    two channels). MP4 and M4A files are not supported. Has no additional options. This codec is not enabled by
+    `format: NONE`. It uses about 55 KB of internal RAM for decoder tables once compiled in, and its working memory
+    is allocated in PSRAM when available.
+
+    - **sbr** (*Optional*, boolean): Decode HE-AAC, which uses spectral band replication. Defaults to `true`. Set it to
+      `false`, together with `ps`, to build an AAC-LC only decoder. HE-AAC streams still play, but only their core
+      layer, at half the sample rate (for example 22.05 kHz for a 44.1 kHz stream).
+
+    - **ps** (*Optional*, boolean): Decode HE-AAC v2, which adds parametric stereo. Defaults to `true`. Requires `sbr`.
+      An HE-AAC v2 stream played without it is mono.
+
+    An AAC-LC only decoder (`sbr: false` and `ps: false`) saves about 21 KB of internal RAM and 42 KB of flash on an
+    ESP32-S3.
 
   - **flac** (*Optional*, mapping): Enable and configure the [FLAC](https://github.com/esphome-libs/micro-flac)
     decoder.
@@ -94,6 +110,7 @@ playback and lower overall CPU usage.
 ```yaml
 audio:
   codecs:
+    aac:
     flac:
       buffer_memory: internal
     mp3:
