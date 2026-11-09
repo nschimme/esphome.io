@@ -7,7 +7,7 @@ The `speaker` media player platform allows you to play on-device and online audi
 
 This platform greatly benefits from having external PSRAM. See the [performance section](#performance) for details.
 
-It natively supports decoding `FLAC`, `MP3`, `OPUS`, and `WAV` audio files. Home Assistant (since version 2024.10) can proxy any media it sends and transcode it to a specified format and sample rate to minimize the device's computational load.
+It natively supports decoding `FLAC`, `MP3`, `OPUS`, and `WAV` audio files, as well as AAC streams in `ADTS` form. Home Assistant (since version 2024.10) can proxy any media it sends and transcode it to a specified format and sample rate to minimize the device's computational load.
 
 It supports two different audio pipelines: announcement and media. Each audio pipeline must output to a unique speaker. Use a [mixer speaker](/components/speaker/mixer/) component to create two different speakers that output to a single audio speaker.
 
@@ -35,12 +35,12 @@ media_player:
 - **announcement_pipeline** (**Required**, Pipeline Schema): Configuration settings for the announcement pipeline.
 
   - **speaker** (**Required**, [ID](/guides/configuration-types/#id)): The [speaker](/components/speaker/) to output the audio.
-  - **format** (*Optional*, enum): The audio format Home Assistant will transcode audio to before sending it to the device. One of `FLAC`, `MP3`, `OPUS`, `WAV`, or `NONE`. `NONE` disables transcoding in Home Assistant; ESPHome will then compile support for all supported codecs (`FLAC`, `MP3`, `OPUS`, and `WAV`), which increases firmware size. To compile in additional codecs without setting this to `NONE`, use the [Audio](/components/audio/) component. Defaults to `FLAC`.
+  - **format** (*Optional*, enum): The audio format Home Assistant will transcode audio to before sending it to the device. One of `FLAC`, `MP3`, `OPUS`, `WAV`, `ADTS`, or `NONE`. `NONE` disables transcoding in Home Assistant; ESPHome will then compile support for the `FLAC`, `MP3`, `OPUS`, and `WAV` codecs, which increases firmware size. `ADTS` (AAC) is opt-in and is not included by `NONE`: set `format: ADTS` on a pipeline, or enable it with the [Audio](/components/audio/) component. To compile in additional codecs without setting this to `NONE`, use the [Audio](/components/audio/) component. Defaults to `FLAC`.
   - **sample_rate** (*Optional*, positive integer): Sample rate for the transcoded audio. Should be supported by the configured `speaker` component. Defaults to the speaker's sample rate. The `OPUS` codec only supports a `48000` sample rate.
   - **num_channels** (*Optional*, positive integer): Number of channels for the transcoded audio. Must be either `1` or `2`. Defaults to the speaker's number of channels.
   - **bitrate** (*Optional*, positive integer): Constant bitrate in kbps that Home Assistant encodes `MP3` at, one
     of `8`, `16`, `24`, `32`, `40`, `48`, `56`, `64`, `80`, `96`, `112`, `128`, `144`, `160`, `192`, `224`, `256` or
-    `320`. Only valid when `format` is `MP3`. When omitted, Home Assistant uses its default variable bitrate.
+    `320`. Only valid when `format` is `MP3`. When omitted, Home Assistant uses its default variable bitrate. `ADTS` does not support this option yet; Home Assistant encodes it at its default bitrate (about 128 kbps for stereo).
 
 - **media_pipeline** (*Optional*, Pipeline Schema): Configuration settings for the media pipeline. Same options as the `announcement_pipeline`.
 - **buffer_size** (*Optional*, positive integer): The buffer size in bytes for each pipeline. Must be between `4000` and `4000000`. Defaults to `1000000`.
@@ -222,6 +222,17 @@ If you experience out-of-memory issues, you can disable these optimizations by s
 ### Audio Codec Performance
 
 In general, decoding FLAC has the lowest CPU usage, but requires a strong WiFi connection. Decoding MP3 requires less data to be sent over WiFi but is more CPU intensive to decode. Decoding WAV is only recommended at low sample rates if streamed over a network connection.
+
+Decoding `ADTS` (AAC) needs more CPU than MP3. In testing on an ESP32-S3 with PSRAM, AAC-LC at about 128 kbps used
+roughly 1.5 times the CPU of MP3 at 128 kbps, and HE-AAC at 48 kbps roughly 3 times, with HE-AAC using about 40% of one
+core for a stereo 44.1 kHz stream. These figures are approximate, since they include time the decoder is preempted by
+other tasks. This was measured only on an ESP32-S3 with PSRAM, where AAC-LC and HE-AAC decode in real time; other chips
+have not been tested. Only mono and stereo are supported, so set `num_channels` to `1` or `2`.
+
+Adding AAC to a firmware that already has FLAC increases its size by about 75 KB and uses about 55 KB of internal RAM
+for decoder tables, in addition to a larger decoder task stack (12 KiB instead of 3 KiB for each pipeline). Playing AAC
+then uses PSRAM for its working memory, about 20 KB for AAC-LC and about 70 KB for HE-AAC. If internal RAM is tight,
+prefer `FLAC` or `MP3`.
 
 Decoding OPUS is extremely CPU and memory intensive and may not even decode in real-time on an ESP32. It is only suitable for ESP32-S3 devices with PSRAM.
 
